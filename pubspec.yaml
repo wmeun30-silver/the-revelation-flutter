@@ -15,12 +15,15 @@ dependencies:
   sqflite: ^2.3.0
   path: ^1.9.0
   path_provider: ^2.1.2
-  audioplayers: ^5.2.1
+  audioplayers: ^6.5.1
   permission_handler: ^11.3.1
   flutter_html: ^3.0.0-beta.2
   youtube_player_flutter: ^9.1.3
   shared_preferences: ^2.2.2
   http: ^1.1.0
+  flutter_tts: ^3.8.5
+  wakelock_plus: ^1.1.4
+  syncfusion_flutter_pdfviewer: ^28.1.33
 
 dev_dependencies:
   flutter_test:
@@ -50,3 +53,9 @@ flutter:
     - assets/mybible/HokmahKor.cmt.mybible
     - assets/img/bible_map/
     - assets/img/app_icon.png
+    - assets/Chapter/
+    - assets/7Churches/
+    - assets/12creed_Catechism.pdf
+    - assets/img/prophet.jpg
+    - assets/img/kings_juda_northisrael.jpg
+    - assets/img/genealogy.png

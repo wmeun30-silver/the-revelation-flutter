@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'hymn_service.dart';
 import 'hymn_screen.dart';
 
@@ -22,18 +23,19 @@ class _HymnListScreenState extends State<HymnListScreen> {
   }
 
   void _loadList() async {
-    if (currentType == "주기도문") {
-      // 주기도문 선택 시 즉시 화면 이동
+    if (currentType == "주기도문" || currentType == "사도신경") {
+      final selectedType = currentType; // 값을 캡처하여 비동기 처리 시 변경되지 않도록 함
       Future.microtask(() {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const HymnScreen(type: "주기도문", no: 1)));
-        setState(() { currentType = "찬송가"; _loadList(); }); // 다시 리스트로 돌아왔을 때 기본값 복구
+        Navigator.push(context, MaterialPageRoute(builder: (context) => HymnScreen(type: selectedType, no: 1)));
+        setState(() { currentType = "찬송가"; _loadList(); });
       });
       return;
     }
-    if (currentType == "사도신경") {
-      // 사도신경 선택 시 즉시 화면 이동
+
+    // 소요리문답 선택 시 전체 화면 PDF 뷰어로 이동 (하단바 숨김 효과)
+    if (currentType == "소요리문답") {
       Future.microtask(() {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const HymnScreen(type: "사도신경", no: 1)));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const CatechismPdfScreen()));
         setState(() { currentType = "찬송가"; _loadList(); });
       });
       return;
@@ -88,7 +90,7 @@ class _HymnListScreenState extends State<HymnListScreen> {
               child: DropdownButton<String>(
                 value: currentType,
                 underline: Container(),
-                items: ["찬송가", "교독문", "주기도문", "사도신경"].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 14, color: Colors.black)))).toList(),
+                items: ["찬송가", "교독문", "주기도문", "사도신경", "소요리문답"].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 14, color: Colors.black)))).toList(),
                 onChanged: (v) { setState(() { currentType = v!; currentRange = "전체"; _loadList(); }); },
               ),
             ),
@@ -126,6 +128,27 @@ class _HymnListScreenState extends State<HymnListScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+// 전체 화면 PDF 뷰어 클래스 (하단바 없음)
+class CatechismPdfScreen extends StatelessWidget {
+  const CatechismPdfScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF001A33),
+        title: const Text("신조와 소요리문답", style: TextStyle(color: Colors.yellow, fontSize: 18, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SfPdfViewer.asset("assets/12creed_Catechism.pdf"),
     );
   }
 }

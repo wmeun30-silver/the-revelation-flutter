@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.the_revelation_flutter"
-    compileSdk = 36 // 라이브러리 요구사항에 맞춰 36으로 상향
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -15,7 +15,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {

@@ -47,13 +47,9 @@ class BibleService {
     );
   }
 
-  // 특정 권/장에 주석 데이터가 있는 '절' 번호 리스트 가져오기
   static Future<List<int>> getAvailableVerses(int book, int chapter) async {
     try {
       final db = await getDatabase("HokmahKor.cmt.mybible");
-      
-      // 스크린샷에 따라 'fromverse' 컬럼을 사용합니다.
-      // 공백이 있을 경우를 대비하여 "from verse" 형식도 고려합니다.
       try {
         final List<Map<String, dynamic>> result = await db.rawQuery(
           'SELECT DISTINCT fromverse FROM commentary WHERE book = ? AND chapter = ? ORDER BY fromverse ASC',
@@ -68,7 +64,6 @@ class BibleService {
         return result.map((row) => row['fromverse'] as int).toList();
       }
     } catch (e) {
-      print("Commentary Verses Error: $e");
       return [];
     }
   }
@@ -76,27 +71,20 @@ class BibleService {
   static Future<String?> getHokmaCommentary(int book, int chapter, int verse) async {
     try {
       final db = await getDatabase("HokmahKor.cmt.mybible");
-      
-      // 스크린샷에 따라 'data' 컬럼을 사용하고 fromverse와 toverse 범위를 확인합니다.
       try {
         final result = await db.rawQuery(
           'SELECT data FROM commentary WHERE book = ? AND chapter = ? AND ? BETWEEN fromverse AND toverse',
           [book, chapter, verse]
         );
-        if (result.isNotEmpty) {
-          return result.first['data'] as String?;
-        }
+        if (result.isNotEmpty) return result.first['data'] as String?;
       } catch (e) {
         final result = await db.rawQuery(
           'SELECT data FROM commentary WHERE book = ? AND chapter = ? AND ? BETWEEN "from verse" AND toverse',
           [book, chapter, verse]
         );
-        if (result.isNotEmpty) {
-          return result.first['data'] as String?;
-        }
+        if (result.isNotEmpty) return result.first['data'] as String?;
       }
     } catch (e) {
-      print("Commentary Content Error: $e");
       return null;
     }
     return null;

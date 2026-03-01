@@ -4,6 +4,7 @@ import 'hymn_list_screen.dart';
 import 'hokma_selection_screen.dart';
 import 'youtube_screen.dart';
 import 'bible_map_screen.dart';
+import 'revelation_study_screen.dart';
 
 void main() => runApp(const MaterialApp(
   debugShowCheckedModeBanner: false,
@@ -29,36 +30,40 @@ class _MainHolderState extends State<MainHolder> {
       const BibleSelectionScreen(isMainTab: true),
       const HokmaSelectionScreen(),
       const HymnListScreen(),
+      const RevelationStudyScreen(),
       const BibleMapScreen(),
       YoutubeScreen(key: _youtubeKey),
     ];
   }
 
-  // 반응형 아이콘 크기 (화면 너비에 따라 조절될 수 있도록 함)
   Widget _buildIcon(String assetName, bool isSelected, double screenWidth) {
-    // 화면 너비가 좁을 경우 아이콘 크기를 약간 줄여 반응형으로 대응
-    double iconSize = screenWidth < 360 ? 60 : 70;
+    double iconSize = screenWidth < 400 ? 55 : 65;
+    bool isYoutube = assetName == 'youtube.png';
 
     return Container(
+      width: iconSize,
+      height: iconSize,
+      alignment: Alignment.center, // 수직/수평 중앙 정렬
       decoration: BoxDecoration(
         color: isSelected ? Colors.purple.withOpacity(0.08) : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: isSelected ? Border.all(color: Colors.purple.withOpacity(0.15), width: 1.5) : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Image.asset(
           'assets/img/button/$assetName',
-          width: iconSize,
-          height: iconSize,
-          fit: BoxFit.fill,
+          // 유튜브 아이콘만 비율에 맞춰 높이를 줄이고 중앙 정렬
+          width: isYoutube ? iconSize * 0.85 : iconSize,
+          height: isYoutube ? iconSize * 0.6 : iconSize,
+          fit: isYoutube ? BoxFit.contain : BoxFit.fill,
         ),
       ),
     );
   }
 
   void _onItemTapped(int index) {
-    if (_selectedIndex == 4 && index != 4) {
+    if (_selectedIndex == 5 && index != 5) {
       _youtubeKey.currentState?.pauseVideo();
     }
     setState(() {
@@ -71,24 +76,22 @@ class _MainHolderState extends State<MainHolder> {
     double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      // 1. 노치 대응: SafeArea를 사용하여 상단 노치 영역에 침범하지 않게 함
       body: SafeArea(
-        top: false, // AppBar가 이미 대응하므로 아래쪽/옆쪽 위주
+        top: false,
         child: IndexedStack(index: _selectedIndex, children: _screens),
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
         ),
-        // 아이폰 하단 홈 바 영역을 위한 패딩 자동 확보 (SafeArea 포함)
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           type: BottomNavigationBarType.fixed,
           onTap: _onItemTapped,
           selectedItemColor: Colors.purple,
           unselectedItemColor: Colors.grey,
-          selectedFontSize: 14,
-          unselectedFontSize: 12,
+          selectedFontSize: 12,
+          unselectedFontSize: 10,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
           items: [
             BottomNavigationBarItem(
@@ -104,11 +107,15 @@ class _MainHolderState extends State<MainHolder> {
               label: '찬송가',
             ),
             BottomNavigationBarItem(
-              icon: _buildIcon('map.png', _selectedIndex == 3, screenWidth),
+              icon: _buildIcon('rev.png', _selectedIndex == 3, screenWidth),
+              label: '계시록강해',
+            ),
+            BottomNavigationBarItem(
+              icon: _buildIcon('map.png', _selectedIndex == 4, screenWidth),
               label: '지도',
             ),
             BottomNavigationBarItem(
-              icon: _buildIcon('youtube.png', _selectedIndex == 4, screenWidth),
+              icon: _buildIcon('youtube.png', _selectedIndex == 5, screenWidth),
               label: '유튜브',
             ),
           ],

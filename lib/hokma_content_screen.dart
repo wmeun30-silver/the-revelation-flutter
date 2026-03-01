@@ -47,12 +47,25 @@ class _HokmaContentScreenState extends State<HokmaContentScreen> {
           onTap: () => Navigator.pop(context), 
           child: Padding(padding: const EdgeInsets.all(12), child: Image.asset('assets/img/button/home_btn.png'))
         ),
-        title: Text("${BibleData.bookNames[b-1]} ${c}장 ${v}절", style: const TextStyle(color: Colors.yellow, fontSize: 18, fontWeight: FontWeight.bold)),
+        // 제목 좌우에 화살표 배치
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () => _move(-1), 
+              child: Image.asset('assets/img/button/l_arrow_btn.png', width: 35)
+            ),
+            const SizedBox(width: 10),
+            Text("${BibleData.bookNames[b-1]} ${c}장 ${v}절", 
+                style: const TextStyle(color: Colors.yellow, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => _move(1), 
+              child: Image.asset('assets/img/button/r_arrow_btn.png', width: 35)
+            ),
+          ],
+        ),
         centerTitle: true,
-        actions: [
-          GestureDetector(onTap: () => _move(-1), child: Padding(padding: const EdgeInsets.all(10), child: Image.asset('assets/img/button/l_arrow_btn.png', width: 45))),
-          GestureDetector(onTap: () => _move(1), child: Padding(padding: const EdgeInsets.all(10), child: Image.asset('assets/img/button/r_arrow_btn.png', width: 45))),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(10), 
@@ -63,6 +76,7 @@ class _HokmaContentScreenState extends State<HokmaContentScreen> {
               fontSize: FontSize(22),
               lineHeight: LineHeight(1.6),
               fontFamily: 'serif',
+              color: Colors.black, // 본문 글자색 명시
             ),
           },
         )

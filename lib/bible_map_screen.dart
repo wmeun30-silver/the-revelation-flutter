@@ -19,24 +19,30 @@ class BibleMapScreen extends StatelessWidget {
     "바울의 두 번째 선교 여행",
     "바울의 세 번째 선교 여행",
     "요한계시록(계 2-3장)",
+    "구약 선지자들",
+    "북왕국.남유다 왕들",
+    "아담의 계보",
   ];
 
   final List<String> mapFileNames = const [
-    "1. THE ANCIENT NEAR EAST.png",
-    "2. THE MIGRATION OF ABRAHAM.png",
-    "3. ABRAHAM IN CANAAN.png",
-    "4. THE TRIBAL ALLOTMENTS OF ISRAEL.png",
-    "5. SOLOMON'S ECONOMIC ENTERPRISES.png",
-    "6. ELIJAH AND ELISHA.png",
-    "7. THE ASSYRIAN EMPIRE UNDER TIGLATH-PILESER III.png",
-    "8. ALEXANDER THE GREAT'S EMPIRE.png",
-    "9. THE DIVISION OF HEROD'S KINGDOM.png",
-    "10.THE PASSION WEEK IN JERUSALEM.png",
-    "11. PENTECOST AND THE JEWISH DIASPORA.png",
-    "12.THE FIRST MISSIONARY JOURNEY OF PAUL.png",
-    "13.THE SECOND MISSIONARY JOURNEY OF PAUL.png",
-    "14.THE THIRD MISSIONARY JOURNEY OF PAUL.png",
-    "15.CHURCHES OF THE REVELATION(REV.2-3).png",
+    "bible_map/1. THE ANCIENT NEAR EAST.png",
+    "bible_map/2. THE MIGRATION OF ABRAHAM.png",
+    "bible_map/3. ABRAHAM IN CANAAN.png",
+    "bible_map/4. THE TRIBAL ALLOTMENTS OF ISRAEL.png",
+    "bible_map/5. SOLOMON'S ECONOMIC ENTERPRISES.png",
+    "bible_map/6. ELIJAH AND ELISHA.png",
+    "bible_map/7. THE ASSYRIAN EMPIRE UNDER TIGLATH-PILESER III.png",
+    "bible_map/8. ALEXANDER THE GREAT'S EMPIRE.png",
+    "bible_map/9. THE DIVISION OF HEROD'S KINGDOM.png",
+    "bible_map/10.THE PASSION WEEK IN JERUSALEM.png",
+    "bible_map/11. PENTECOST AND THE JEWISH DIASPORA.png",
+    "bible_map/12.THE FIRST MISSIONARY JOURNEY OF PAUL.png",
+    "bible_map/13.THE SECOND MISSIONARY JOURNEY OF PAUL.png",
+    "bible_map/14.THE THIRD MISSIONARY JOURNEY OF PAUL.png",
+    "bible_map/15.CHURCHES OF THE REVELATION(REV.2-3).png",
+    "prophet.jpg",
+    "kings_juda_northisrael.jpg",
+    "genealogy.png",
   ];
 
   @override
@@ -57,7 +63,7 @@ class BibleMapScreen extends StatelessWidget {
         ),
         itemCount: mapFileNames.length,
         itemBuilder: (context, index) {
-          String imagePath = 'assets/img/bible_map/${mapFileNames[index]}';
+          String imagePath = 'assets/img/${mapFileNames[index]}';
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -119,20 +125,26 @@ class FullScreenImage extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: Center(
-        child: InteractiveViewer(
-          panEnabled: true,
-          minScale: 0.5,
-          maxScale: 5.0,
-          child: Image.asset(
-            imagePath,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Text(
-              "이미지를 불러올 수 없습니다.",
-              style: TextStyle(color: Colors.white),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return InteractiveViewer(
+            panEnabled: true,
+            minScale: 1.0,
+            maxScale: 10.0,
+            boundaryMargin: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Text("이미지를 불러올 수 없습니다.", style: TextStyle(color: Colors.white)),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        }
       ),
     );
   }
