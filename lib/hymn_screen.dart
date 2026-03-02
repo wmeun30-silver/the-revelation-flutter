@@ -30,15 +30,19 @@ class HymnScreenState extends State<HymnScreen> {
     super.initState();
     _currentType = widget.type;
     _currentNo = widget.no;
-    _refresh();
-    _audioPlayer.onDurationChanged.listen((d) => setState(() => _duration = d));
-    _audioPlayer.onPositionChanged.listen((p) => setState(() => _position = p));
+    
+    // 화면이 빌드된 후 데이터를 로드하도록 처리
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refresh();
+    });
+
+    _audioPlayer.onDurationChanged.listen((d) { if (mounted) setState(() => _duration = d); });
+    _audioPlayer.onPositionChanged.listen((p) { if (mounted) setState(() => _position = p); });
     _audioPlayer.onPlayerComplete.listen((event) {
       if (_repeatMode == 1) { _startPlay(); }
       else if (_repeatMode == 2) { _changeNo(1); }
-      else { setState(() => _isPlaying = false); }
+      else { if (mounted) setState(() => _isPlaying = false); }
     });
-    if (_currentType == "찬송가") _startPlay();
   }
 
   @override
@@ -48,80 +52,91 @@ class HymnScreenState extends State<HymnScreen> {
     super.dispose();
   }
 
-  void stopAudio() { _audioPlayer.stop(); setState(() => _isPlaying = false); }
+  void stopAudio() { 
+    _audioPlayer.stop(); 
+    if (mounted) setState(() => _isPlaying = false); 
+  }
 
   void _refresh() async {
     if (_currentType == "주기도문") {
-      setState(() {
-        _title = "주기도문";
-        _content = "하늘에 계신 우리 아버지여,\n이름이 거룩히 여김을 받으시오며,\n나라이 임하옵시며,\n뜻이 하늘에서 이룬 것 같이\n땅에서도 이루어지이다.\n\n"
-            "오늘날 우리에게 일용할 양식을 주옵시고,\n우리가 우리에게 죄 지은 자를 사하여 준 것 같이\n우리 죄를 사하여 주옵시고,\n우리를 시험에 들게 하지 마옵시고,\n다만 악에서 구하옵소서.\n\n"
-            "(대개 나라와 권세와 영광이\n아버지께 영원히 있사옵나이다. 아멘.)\n\n"
-            "---------------------------------\n\n"
-            "Our Father which art in heaven,\nHallowed be thy name.\nThy kingdom come.\nThy will be done in earth, as it is in heaven.\n\n"
-            "Give us this day our daily bread.\nAnd forgive us our debts,\nas we forgive our debtors.\nAnd lead us not into temptation,\nbut deliver us from evil:\n\n"
-            "For thine is the kingdom,\nand the power, and the glory, for ever. Amen.";
-      });
+      if (mounted) {
+        setState(() {
+          _title = "주기도문";
+          _content = "하늘에 계신 우리 아버지여,\n이름이 거룩히 여김을 받으시오며,\n나라이 임하옵시며,\n뜻이 하늘에서 이룬 것 같이\n땅에서도 이루어지이다.\n\n"
+              "오늘날 우리에게 일용할 양식을 주옵시고,\n우리가 우리에게 죄 지은 자를 사하여 준 것 같이\n우리 죄를 사하여 주옵시고,\n우리를 시험에 들게 하지 마옵시고,\n다만 악에서 구하옵소서.\n\n"
+              "(대개 나라와 권세와 영광이\n아버지께 영원히 있사옵나이다. 아멘.)\n\n"
+              "---------------------------------\n\n"
+              "Our Father which art in heaven,\nHallowed be thy name.\nThy kingdom come.\nThy will be done in earth, as it is in heaven.\n\n"
+              "Give us this day our daily bread.\nAnd forgive us our debts,\nas we forgive our debtors.\nAnd lead us not into temptation,\nbut deliver us from evil:\n\n"
+              "For thine is the kingdom,\nand the power, and the glory, for ever. Amen.";
+        });
+      }
       return;
     }
     if (_currentType == "사도신경") {
-      setState(() {
-        _title = "사도신경";
-        _content = "전능하사 천지를 만드신\n하나님 아버지를 내가 믿사오며,\n그 외아들 우리 주 예수 그리스도를 믿사오니,\n이는 성령으로 잉태하사\n동정녀 마리아에게 나시고,\n본디오 빌라도에게 고난을 받으사,\n십자가에 못 박혀 죽으시고,\n장사한지 사흘 만에\n죽은 자 가운데서 다시 살아나시며,\n\n"
-            "하늘에 오르사,\n전능하신 하나님 우편에 앉아 계시다가,\n저리로서 산 자와 죽은 자를 심판하러 오시리라.\n\n"
-            "성령을 믿사오며,\n거룩한 공회와 성도가 서로 교통하는 것과,\n죄를 사하여 주시는 것과,\n몸이 다시 사는 것과,\n영원히 사는 것을 믿사옵나이다. 아멘.\n\n"
-            "---------------------------------\n\n"
-            "I believe in God the Father Almighty,\nMaker of heaven and earth,\nand in Jesus Christ his only Son our Lord,\nwho was conceived by the Holy Ghost,\nborn of the Virgin Mary,\nsuffered under Pontius Pilate,\nwas crucified, dead, and buried;\nhe descended into hell;\nthe third day he rose again from the dead;\n\n"
-            "he ascended into heaven,\nand sitteth on the right hand\nof God the Father Almighty;\nfrom thence he shall come\nto judge the quick and the dead.\n\n"
-            "I believe in the Holy Ghost;\nthe holy catholic Church;\nthe communion of saints;\nthe forgiveness of sins;\nthe resurrection of the body;\nand the life everlasting. Amen.";
-      });
+      if (mounted) {
+        setState(() {
+          _title = "사도신경";
+          _content = "전능하사 천지를 만드신\n하나님 아버지를 내가 믿사오며,\n그 외아들 우리 주 예수 그리스도를 믿사오니,\n이는 성령으로 잉태하사\n동정녀 마리아에게 나시고,\n본디오 빌라도에게 고난을 받으사,\n십자가에 못 박혀 죽으시고,\n장사한지 사흘 만에\n죽은 자 가운데서 다시 살아나시며,\n\n"
+              "하늘에 오르사,\n전능하신 하나님 우편에 앉아 계시다가,\n저리로서 산 자와 죽은 자를 심판하러 오시리라.\n\n"
+              "성령을 믿사오며,\n거룩한 공회와 성도가 서로 교통하는 것과,\n죄를 사하여 주시는 것과,\n몸이 다시 사는 것과,\n영원히 사는 것을 믿사옵나이다. 아멘.\n\n"
+              "---------------------------------\n\n"
+              "I believe in God the Father Almighty,\nMaker of heaven and earth,\nand in Jesus Christ his only Son our Lord,\nwho was conceived by the Holy Ghost,\nborn of the Virgin Mary,\nsuffered under Pontius Pilate,\nwas crucified, dead, and buried;\nhe descended into hell;\nthe third day he rose again from the dead;\n\n"
+              "he ascended into heaven,\nand sitteth on the right hand\nof God the Father Almighty;\nfrom thence he shall come\nto judge the quick and the dead.\n\n"
+              "I believe in the Holy Ghost;\nthe holy catholic Church;\nthe communion of saints;\nthe forgiveness of sins;\nthe resurrection of the body;\nand the life everlasting. Amen.";
+        });
+      }
       return;
     }
+
+    if (mounted) setState(() { _title = "로딩 중..."; _content = ""; });
 
     try {
       String fileName = (_currentType == "찬송가") ? "new_song.txt" : "교독문.txt";
       final data = await HymnService.loadData(fileName, _currentNo);
       
-      setState(() {
-        String titleRaw = data["title"] ?? "";
-        if (titleRaw == "에러" || titleRaw.isEmpty) {
-          _title = "$_currentNo장 (데이터 없음)";
-          _content = "본문 데이터를 찾을 수 없거나 불러오는 데 실패했습니다.";
-        } else {
-          _title = titleRaw.replaceFirst(".", "장 ");
-          _content = data["content"] ?? "";
-        }
-      });
+      if (mounted) {
+        setState(() {
+          String titleRaw = data["title"] ?? "";
+          if (titleRaw == "에러" || titleRaw.isEmpty) {
+            _title = "$_currentNo장 (데이터 없음)";
+            _content = "본문 데이터를 찾을 수 없거나 불러오는 데 실패했습니다.";
+          } else {
+            _title = titleRaw.replaceFirst(".", "장 ");
+            _content = data["content"] ?? "";
+          }
+        });
+        if (_currentType == "찬송가") _startPlay();
+      }
     } catch (e) {
-      setState(() {
-        _title = "오류";
-        _content = "데이터 로딩 중 오류가 발생했습니다.";
-      });
+      if (mounted) {
+        setState(() {
+          _title = "오류";
+          _content = "데이터 로딩 중 오류가 발생했습니다.";
+        });
+      }
     }
   }
 
   void _changeNo(int offset) async {
     if (_currentType == "주기도문" || _currentType == "사도신경") return;
     await _audioPlayer.stop();
-    setState(() {
-      _isPlaying = false;
-      int maxNo = (_currentType == "찬송가") ? 645 : 137;
-      _currentNo += offset;
-      if (_currentNo < 1) _currentNo = 1;
-      if (_currentNo > maxNo) _currentNo = maxNo;
-      _refresh();
-      if (_currentType == "찬송가") _startPlay();
-    });
+    if (mounted) {
+      setState(() {
+        _isPlaying = false;
+        int maxNo = (_currentType == "찬송가") ? 645 : 137;
+        _currentNo += offset;
+        if (_currentNo < 1) _currentNo = 1;
+        if (_currentNo > maxNo) _currentNo = maxNo;
+        _refresh();
+      });
+    }
   }
 
   Future<String> _getAudioBasePath() async {
-    if (Platform.isAndroid) {
-      return "/storage/emulated/0/com.bms.bible";
-    } else if (Platform.isIOS) {
-      final directory = await getApplicationDocumentsDirectory();
-      return directory.path;
-    }
-    return "";
+    if (Platform.isAndroid) return "/storage/emulated/0/com.bms.bible";
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
   }
 
   void _startPlay() async {
@@ -135,14 +150,19 @@ class HymnScreenState extends State<HymnScreen> {
       if (await File(path).exists()) {
         await _audioPlayer.play(DeviceFileSource(path));
         await _audioPlayer.setPlaybackRate(_currentSpeed);
-        setState(() => _isPlaying = true);
+        if (mounted) setState(() => _isPlaying = true);
       }
     }
   }
 
   Widget _buildContent() {
     if (_content.isEmpty || _title.contains("데이터 없음")) {
-      return Center(child: Text(_content, style: const TextStyle(fontSize: 18, color: Colors.grey)));
+      return Center(child: Padding(
+        padding: const EdgeInsets.only(top: 50),
+        child: _title == "로딩 중..." 
+          ? const CircularProgressIndicator() 
+          : Text(_content, style: const TextStyle(fontSize: 18, color: Colors.grey)),
+      ));
     }
 
     if (_currentType != "교독문") {

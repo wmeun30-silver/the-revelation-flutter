@@ -5,6 +5,7 @@ import 'package:path/path.dart';
 
 class BibleService {
   static final Map<String, Database> _openedDbs = {};
+  static String lastSuccessDb = "연결 시도 중...";
 
   static Future<Database> getDatabase(String dbName) async {
     if (_openedDbs.containsKey(dbName)) return _openedDbs[dbName]!;
@@ -21,87 +22,80 @@ class BibleService {
     return db;
   }
 
-  static Future<List<Map<String, dynamic>>> getVerses({
-    required String translation, required int book, required int chapter,
-  }) async {
-    String dbName = (translation == "개역개정") ? "nrkv_bible.db" :
-    (_isForeign(translation) ? "foreign_bible.db" : "general_bible.db");
+  static Future<String?> _findActualTableName(Database db, String targetName) async {
     try {
-      final db = await getDatabase(dbName);
-      return await db.rawQuery('SELECT Scripture, verse FROM "$translation" WHERE book=$book AND chapter=$chapter ORDER BY verse ASC');
-    } catch (e) {
-      final fallbackDb = await getDatabase("general_bible.db");
-      return await fallbackDb.rawQuery('SELECT Scripture, verse FROM "$translation" WHERE book=$book AND chapter=$chapter ORDER BY verse ASC');
-    }
+      final List<Map<String, dynamic>> allTables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      for (var row in allTables) {
+        String name = row['name'] as String;
+        if (name.toLowerCase() == targetName.toLowerCase()) return name;
+      }
+    } catch (_) {}
+    return null;
   }
 
-  static Future<List<Map<String, dynamic>>> search({
-    required String translation, required String query, required List<int> bookIds
-  }) async {
-    String dbName = (translation == "개역개정") ? "nrkv_bible.db" : "general_bible.db";
-    final db = await getDatabase(dbName);
-    String bookList = bookIds.join(',');
-    return await db.rawQuery(
-        'SELECT book, chapter, verse, Scripture FROM "$translation" WHERE book IN ($bookList) AND Scripture LIKE ? ORDER BY book ASC, chapter ASC, verse ASC',
-        ['%$query%']
-    );
+  static Future<Map<String, dynamic>> getVersesWithDb({required String translation, required int book, required int chapter}) async {
+    List<String> dbsToSearch = ["general_bible.db", "foreign_bible.db", "nrkv_bible.db"];
+    if (translation.toLowerCase().contains("kjv")) {
+      dbsToSearch = ["foreign_bible.db", "general_bible.db", "nrkv_bible.db"];
+    }
+
+    for (String dbName in dbsToSearch) {
+      try {
+        final db = await getDatabase(dbName);
+        String? actualTable = await _findActualTableName(db, translation);
+        if (actualTable == null) continue;
+
+        final List<Map<String, dynamic>> result = await db.rawQuery(
+          'SELECT Scripture, verse FROM "$actualTable" WHERE book = ? AND chapter = ? ORDER BY verse ASC',
+          [book, chapter]
+        );
+        if (result.isNotEmpty) {
+          lastSuccessDb = dbName;
+          return {"verses": result, "db": dbName, "table": actualTable};
+        }
+      } catch (e) { continue; }
+    }
+    return {"verses": [], "db": "데이터 없음", "table": "없음"};
+  }
+
+  static Future<List<Map<String, dynamic>>> getVerses({required String translation, required int book, required int chapter}) async {
+    final res = await getVersesWithDb(translation: translation, book: book, chapter: chapter);
+    return res["verses"] as List<Map<String, dynamic>>;
+  }
+
+  static Future<List<Map<String, dynamic>>> search({required String translation, required String query, required List<int> bookIds}) async {
+    try {
+      final db = await getDatabase(translation == "개역개정" ? "nrkv_bible.db" : "general_bible.db");
+      String? actualTable = await _findActualTableName(db, translation);
+      if (actualTable == null) return [];
+      String bookList = bookIds.join(',');
+      return await db.rawQuery('SELECT book, chapter, verse, Scripture FROM "$actualTable" WHERE book IN ($bookList) AND Scripture LIKE ? ORDER BY book ASC, chapter ASC, verse ASC', ['%$query%']);
+    } catch (e) { return []; }
   }
 
   static Future<List<int>> getAvailableVerses(int book, int chapter) async {
     try {
       final db = await getDatabase("HokmahKor.cmt.mybible");
-      try {
-        final List<Map<String, dynamic>> result = await db.rawQuery(
-          'SELECT DISTINCT fromverse FROM commentary WHERE book = ? AND chapter = ? ORDER BY fromverse ASC',
-          [book, chapter]
-        );
-        return result.map((row) => row['fromverse'] as int).toList();
-      } catch (e) {
-        final List<Map<String, dynamic>> result = await db.rawQuery(
-          'SELECT DISTINCT "from verse" as fromverse FROM commentary WHERE book = ? AND chapter = ? ORDER BY fromverse ASC',
-          [book, chapter]
-        );
-        return result.map((row) => row['fromverse'] as int).toList();
-      }
-    } catch (e) {
-      return [];
-    }
+      final List<Map<String, dynamic>> result = await db.rawQuery('SELECT DISTINCT fromverse FROM commentary WHERE book = ? AND chapter = ? ORDER BY fromverse ASC', [book, chapter]);
+      return result.map((row) => row['fromverse'] as int).toList();
+    } catch (e) { return []; }
   }
 
   static Future<String?> getHokmaCommentary(int book, int chapter, int verse) async {
     try {
       final db = await getDatabase("HokmahKor.cmt.mybible");
-      try {
-        final result = await db.rawQuery(
-          'SELECT data FROM commentary WHERE book = ? AND chapter = ? AND ? BETWEEN fromverse AND toverse',
-          [book, chapter, verse]
-        );
-        if (result.isNotEmpty) return result.first['data'] as String?;
-      } catch (e) {
-        final result = await db.rawQuery(
-          'SELECT data FROM commentary WHERE book = ? AND chapter = ? AND ? BETWEEN "from verse" AND toverse',
-          [book, chapter, verse]
-        );
-        if (result.isNotEmpty) return result.first['data'] as String?;
-      }
-    } catch (e) {
-      return null;
-    }
+      final result = await db.rawQuery('SELECT data FROM commentary WHERE book = ? AND chapter = ? AND ? BETWEEN fromverse AND toverse', [book, chapter, verse]);
+      if (result.isNotEmpty) return result.first['data'] as String?;
+    } catch (e) { return null; }
     return null;
   }
 
-  static bool _isForeign(String t) {
-    String tl = t.toLowerCase();
-    return tl.contains("lxx") || tl.contains("berean") || tl.contains("kjv") ||
-        tl.contains("네팔어") || tl.contains("독일어") || tl.contains("러시아어") ||
-        tl.contains("베트남어") || tl.contains("일본어") || tl.contains("중국어") ||
-        tl.contains("터키어") || tl.contains("프랑스어") || tl.contains("히브리어");
-  }
-
   static Future<String?> getStrongDefinition(String code) async {
-    final db = await getDatabase("strong.dct.mybible");
-    String type = code.substring(0, 1), numOnly = code.substring(1), padded = numOnly.padLeft(5, '0');
-    final result = await db.rawQuery("SELECT data FROM dictionary WHERE word = ? OR word = ? OR word = ?", [code, numOnly, type + padded]);
-    return result.isNotEmpty ? result.first['data'] as String : null;
+    try {
+      final db = await getDatabase("strong.dct.mybible");
+      String type = code.substring(0, 1), numOnly = code.substring(1), padded = numOnly.padLeft(5, '0');
+      final result = await db.rawQuery("SELECT data FROM dictionary WHERE word = ? OR word = ? OR word = ?", [code, numOnly, type + padded]);
+      return result.isNotEmpty ? result.first['data'] as String : null;
+    } catch (e) { return null; }
   }
 }
