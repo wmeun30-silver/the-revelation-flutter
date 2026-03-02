@@ -378,7 +378,7 @@ class BibleScreenState extends State<BibleScreen> {
                     }),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((s) =>
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((s) =>
                       GestureDetector(
                         onTap: () { 
                           setState(() => _currentSpeed = s); 
