@@ -24,6 +24,7 @@ dependencies:
   flutter_tts: ^3.8.5
   wakelock_plus: ^1.1.4
   syncfusion_flutter_pdfviewer: ^28.1.33
+  flutter_foreground_task: ^6.1.1
 
 dev_dependencies:
   flutter_test:

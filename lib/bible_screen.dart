@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'bible_service.dart';
 import 'bible_data.dart';
 import 'bible_selection_screen.dart';
@@ -36,7 +37,6 @@ class BibleScreenState extends State<BibleScreen> {
   List<Map<String, dynamic>> mainVerses = [];
   Map<int, String> compareMap = {};
   
-  // 자동 스크롤을 위한 Key 리스트
   List<GlobalKey> _itemKeys = [];
   int _lastScrolledIndex = -1;
 
@@ -58,6 +58,7 @@ class BibleScreenState extends State<BibleScreen> {
     super.initState();
     currentBook = widget.book;
     currentChapter = widget.chapter;
+    _initForegroundTask();
     _loadVerses();
     
     _audioPlayer.setReleaseMode(ReleaseMode.stop);
@@ -88,8 +89,29 @@ class BibleScreenState extends State<BibleScreen> {
     }
   }
 
+  void _initForegroundTask() {
+    FlutterForegroundTask.init(
+      notificationOptions: const NotificationOptions(
+        id: 888,
+        channelId: 'bible_reading_channel',
+        channelName: 'Bible Reading Service',
+        channelDescription: 'Maintains bible reading in background',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      foregroundTaskOptions: const ForegroundTaskOptions(
+        interval: 5000,
+        isOnceEvent: false,
+        autoRunOnBoot: false,
+        allowWakeLock: true,
+        allowWifiLock: true,
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _stopForegroundService();
     WakelockPlus.disable();
     _audioPlayer.stop();
     _audioPlayer.dispose();
@@ -99,10 +121,17 @@ class BibleScreenState extends State<BibleScreen> {
   }
 
   void stopAudio() { 
+    _stopForegroundService();
     WakelockPlus.disable();
     _audioPlayer.stop(); 
     _flutterTts.stop();
     setState(() { _isPlaying = false; _isTtsMode = false; }); 
+  }
+
+  Future<void> _stopForegroundService() async {
+    if (await FlutterForegroundTask.isRunningService) {
+      await FlutterForegroundTask.stopService();
+    }
   }
 
   Future<void> _loadVerses() async {
@@ -115,7 +144,6 @@ class BibleScreenState extends State<BibleScreen> {
     setState(() { 
       mainVerses = mainData; 
       compareMap = cMap; 
-      // 데이터 로딩 시 Key 리스트 초기화
       _itemKeys = List.generate(mainVerses.length, (_) => GlobalKey());
       _lastScrolledIndex = -1;
     });
@@ -156,7 +184,18 @@ class BibleScreenState extends State<BibleScreen> {
     }
 
     if (await Permission.audio.request().isGranted || await Permission.storage.request().isGranted) {
+      if (Platform.isAndroid) {
+        await Permission.notification.request();
+      }
+      
       WakelockPlus.enable();
+      
+      // 포그라운드 서비스 시작
+      await FlutterForegroundTask.startService(
+        notificationTitle: 'Bms Bible 낭독 중',
+        notificationText: '${BibleData.bookNames[currentBook - 1]} $currentChapter장',
+      );
+
       if (widget.onPlayStarted != null) widget.onPlayStarted!();
       
       String basePath = await _getAudioBasePath();
@@ -177,7 +216,6 @@ class BibleScreenState extends State<BibleScreen> {
   }
 
   void _startTts() async {
-    WakelockPlus.enable();
     String t = currentTranslation.toLowerCase();
     String lang = "ko-KR";
     if (t.contains("niv") || t.contains("kjv") || t.contains("nas")) lang = "en-US";
@@ -205,7 +243,6 @@ class BibleScreenState extends State<BibleScreen> {
     if (!_isPlaying || index >= mainVerses.length) return;
     setState(() => _position = Duration(seconds: index));
     
-    // 자동 스크롤 로직: 인덱스가 변했을 때만 실행하여 드래그 시 충돌 방지
     if (_lastScrolledIndex != index) {
       _lastScrolledIndex = index;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -216,7 +253,7 @@ class BibleScreenState extends State<BibleScreen> {
               keyContext,
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeInOut,
-              alignment: 0.0, // 화면 최상단으로 정렬
+              alignment: 0.0,
             );
           }
         }
@@ -310,112 +347,113 @@ class BibleScreenState extends State<BibleScreen> {
           }),
         ],
       ),
-      body: Stack(
-        children: [
-          ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 220),
-            itemCount: mainVerses.length,
-            itemBuilder: (context, index) {
-              final v = mainVerses[index];
-              bool isSpeaking = _isTtsMode && _isPlaying && _currentTtsIndex == index;
-              if (isInterlinear) return _buildInterlinearVerse(v['Scripture'], v['verse']);
-              
-              return Padding(
-                key: _itemKeys[index], // 스크롤을 위한 Key 할당
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Container(
-                  color: isSpeaking ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text.rich(TextSpan(children: [
-                      TextSpan(text: "${v['verse']} ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 22, fontFamily: 'serif')),
-                      if (!isHtmlView) TextSpan(text: v['Scripture'], style: const TextStyle(fontSize: 24, height: 1.4, fontFamily: 'serif')),
-                    ])),
-                    if (isHtmlView) Html(
-                      data: v['Scripture'],
-                      style: {
-                        "body": Style(
-                          fontSize: FontSize(24), 
-                          height: Height(1.4), 
-                          fontFamily: 'serif', 
-                          margin: Margins.zero, 
-                          padding: HtmlPaddings.zero,
-                          color: Colors.black,
-                        ),
-                      },
-                    ),
-                    if (compareMap[v['verse']] != null) Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(compareMap[v['verse']]!, style: TextStyle(fontSize: 20, color: Colors.green[700], height: 1.4, fontFamily: 'serif')),
-                    ),
-                  ]),
-                ),
-              );
-            },
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 5),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Slider(
-                    activeColor: Colors.blue,
-                    value: _position.inSeconds.toDouble().clamp(0.0, _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0),
-                    max: _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0,
-                    onChanged: (v) {
-                      if (_isTtsMode) {
-                        // 슬라이더를 옮길 때만 인덱스 업데이트 (스크롤은 _speakVerse 내부에서 절이 바뀔 때만 수행됨)
-                        setState(() { _currentTtsIndex = v.toInt(); });
-                        _speakVerse(_currentTtsIndex);
-                      } else {
-                        _audioPlayer.seek(Duration(seconds: v.toInt()));
-                      }
-                    }),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((s) =>
-                      GestureDetector(
-                        onTap: () { 
-                          setState(() => _currentSpeed = s); 
-                          if (_isTtsMode) { _flutterTts.setSpeechRate(s * 0.5); }
-                          else { _audioPlayer.setPlaybackRate(s); }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            color: _currentSpeed == s ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(15),
+      body: WithForegroundTask(
+        child: Stack(
+          children: [
+            ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 220),
+              itemCount: mainVerses.length,
+              itemBuilder: (context, index) {
+                final v = mainVerses[index];
+                bool isSpeaking = _isTtsMode && _isPlaying && _currentTtsIndex == index;
+                if (isInterlinear) return _buildInterlinearVerse(v['Scripture'], v['verse']);
+                
+                return Padding(
+                  key: _itemKeys[index],
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Container(
+                    color: isSpeaking ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text.rich(TextSpan(children: [
+                        TextSpan(text: "${v['verse']} ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 22, fontFamily: 'serif')),
+                        if (!isHtmlView) TextSpan(text: v['Scripture'], style: const TextStyle(fontSize: 24, height: 1.4, fontFamily: 'serif')),
+                      ])),
+                      if (isHtmlView) Html(
+                        data: v['Scripture'],
+                        style: {
+                          "body": Style(
+                            fontSize: FontSize(24), 
+                            height: Height(1.4), 
+                            fontFamily: 'serif', 
+                            margin: Margins.zero, 
+                            padding: HtmlPaddings.zero,
+                            color: Colors.black,
                           ),
-                          child: Text("${s}x", style: TextStyle(fontSize: 15, fontWeight: _currentSpeed == s ? FontWeight.bold : FontWeight.normal, color: _currentSpeed == s ? Colors.blue : Colors.grey[700])),
-                        ),
-                      )).toList()),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(15, 5, 15, 15),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(onTap: () => Navigator.maybePop(context), child: Image.asset('assets/img/button/home_btn.png', width: 45)),
-                      GestureDetector(onTap: () => _changeNo(-1), child: Image.asset('assets/img/button/l_arrow_btn.png', width: 50)),
-                      GestureDetector(onTap: () => _isPlaying ? stopAudio() : _startPlay(),
-                          child: Image.asset(_isPlaying ? 'assets/img/button/pause_btn.png' : 'assets/img/button/play_btn.png', width: 65)),
-                      GestureDetector(onTap: () => _changeNo(1), child: Image.asset('assets/img/button/r_arrow_btn.png', width: 50)),
-                      GestureDetector(onTap: () => setState(() => _repeatMode = (_repeatMode + 1) % 3),
-                          child: Image.asset('assets/img/button/repeat_btn.png', width: 40,
-                              color: _repeatMode == 0 ? Colors.grey : (_repeatMode == 1 ? Colors.orange : Colors.blue))),
-                    ],
+                        },
+                      ),
+                      if (compareMap[v['verse']] != null) Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(compareMap[v['verse']]!, style: TextStyle(fontSize: 20, color: Colors.green[700], height: 1.4, fontFamily: 'serif')),
+                      ),
+                    ]),
                   ),
-                ),
-              ]),
+                );
+              },
             ),
-          )
-        ],
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 5),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Slider(
+                      activeColor: Colors.blue,
+                      value: _position.inSeconds.toDouble().clamp(0.0, _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0),
+                      max: _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0,
+                      onChanged: (v) {
+                        if (_isTtsMode) {
+                          setState(() { _currentTtsIndex = v.toInt(); });
+                          _speakVerse(_currentTtsIndex);
+                        } else {
+                          _audioPlayer.seek(Duration(seconds: v.toInt()));
+                        }
+                      }),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((s) =>
+                        GestureDetector(
+                          onTap: () { 
+                            setState(() => _currentSpeed = s); 
+                            if (_isTtsMode) { _flutterTts.setSpeechRate(s * 0.5); }
+                            else { _audioPlayer.setPlaybackRate(s); }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: _currentSpeed == s ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Text("${s}x", style: TextStyle(fontSize: 15, fontWeight: _currentSpeed == s ? FontWeight.bold : FontWeight.normal, color: _currentSpeed == s ? Colors.blue : Colors.grey[700])),
+                          ),
+                        )).toList()),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(15, 5, 15, 15),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(onTap: () => Navigator.maybePop(context), child: Image.asset('assets/img/button/home_btn.png', width: 45)),
+                        GestureDetector(onTap: () => _changeNo(-1), child: Image.asset('assets/img/button/l_arrow_btn.png', width: 50)),
+                        GestureDetector(onTap: () => _isPlaying ? stopAudio() : _startPlay(),
+                            child: Image.asset(_isPlaying ? 'assets/img/button/pause_btn.png' : 'assets/img/button/play_btn.png', width: 65)),
+                        GestureDetector(onTap: () => _changeNo(1), child: Image.asset('assets/img/button/r_arrow_btn.png', width: 50)),
+                        GestureDetector(onTap: () => setState(() => _repeatMode = (_repeatMode + 1) % 3),
+                            child: Image.asset('assets/img/button/repeat_btn.png', width: 40,
+                                color: _repeatMode == 0 ? Colors.grey : (_repeatMode == 1 ? Colors.orange : Colors.blue))),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
